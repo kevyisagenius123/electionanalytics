@@ -1,0 +1,264 @@
+/* Tailwind CSS directives */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Vite Index CSS */
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ---- Corporate Design Tokens ---- */
+:root {
+  --color-bg-deep:#0b111b;
+  --color-bg-alt:#131d2b;
+  --color-surface:#1d2936;
+  --color-border:#253341;
+  --color-border-strong:#2f4557;
+  --color-text-primary:#f1f5f9;
+  --color-text-secondary:#cbd5e1;
+  --color-text-tertiary:#94a3b8;
+  --radius-sm:4px;
+  --radius-md:8px;
+  --radius-lg:14px;
+  --gradient-brand:linear-gradient(135deg,#1d4ed8 0%,#3b82f6 45%,#6366f1 100%);
+  --gradient-accent:linear-gradient(120deg,#7c3aed 0%,#6366f1 60%,#3b82f6 100%);
+}
+
+body { background: radial-gradient(circle at 30% 20%, #162132 0%, #0b111b 70%) fixed; color: var(--color-text-primary); }
+
+/* Flip card utilities */
+.perspective { perspective:1200px; }
+.flip-card { position:relative; width:100%; height:100%; }
+.flip-inner { position:relative; width:100%; height:100%; transform-style:preserve-3d; transition:transform .9s var(--ease-soft, cubic-bezier(.17,.9,.25,1)); }
+.flip-face { position:absolute; inset:0; backface-visibility:hidden; }
+.flip-face.back { transform:rotateY(180deg); }
+
+/* ---- Surface & Card Utilities ---- */
+.app-surface { background: var(--color-surface); border:1px solid var(--color-border); border-radius: var(--radius-md); }
+.app-card { background: linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 100%), var(--color-surface); border:1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: 0 4px 18px -4px rgba(0,0,0,.4), 0 2px 6px -1px rgba(0,0,0,.25); backdrop-filter: blur(6px); }
+.app-card:hover { border-color: var(--color-border-strong); }
+
+/* ---- Typography Helpers ---- */
+.text-gradient-brand { background: var(--gradient-brand); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+/* ---- Buttons ---- */
+.btn-primary { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem 1rem; border-radius:8px; font-weight:500; color:#fff; background:#2563eb; background-image:linear-gradient(90deg,#2563eb,#3b82f6); box-shadow:0 1px 2px rgba(0,0,0,.25); cursor:pointer; transition:background .25s, box-shadow .25s, transform .25s; border:1px solid #1d4ed8; }
+.btn-primary:hover { background-image:linear-gradient(90deg,#1d4ed8,#2563eb); }
+.btn-primary:active { transform:translateY(1px); }
+.btn-primary:focus-visible { box-shadow:0 0 0 1px rgba(255,255,255,.1),0 0 0 4px rgba(59,130,246,.35); outline:none; }
+
+.btn-outline { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem 1rem; border-radius:8px; font-weight:500; color:#93c5fd; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.4); cursor:pointer; transition:color .25s,border-color .25s,background .25s; }
+.btn-outline:hover { color:#fff; border-color:#60a5fa; background:rgba(59,130,246,0.15); }
+.btn-outline:focus-visible { box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 0 4px rgba(59,130,246,.35); outline:none; }
+
+.badge { display:inline-flex; align-items:center; gap:.25rem; padding:.125rem .5rem; border-radius:999px; font-size:.7rem; line-height:1; font-weight:500; background:rgba(59,130,246,.15); color:#93c5fd; border:1px solid rgba(96,165,250,.3); letter-spacing:.5px; }
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background: #0d1826; }
+::-webkit-scrollbar-thumb { background:#1f2f42; border-radius:6px; border:2px solid #0d1826; }
+::-webkit-scrollbar-thumb:hover { background:#284056; }
+
+/* ---- Focus Ring ---- */
+:focus-visible { outline:2px solid #3b82f6; outline-offset:2px; border-radius:4px; }
+
+/* ---- Animations ---- */
+.fade-in { animation: fadeIn .6s ease forwards; }
+.scale-in { animation: scaleIn .4s ease forwards; }
+@keyframes fadeIn { 0% { opacity:0 } 100% { opacity:1 } }
+@keyframes scaleIn { 0% { opacity:0; transform:scale(.96) } 100% { opacity:1; transform:scale(1) } }
+
+@media (max-width: 640px) { .app-grid { grid-template-columns: 1fr !important; } }
+
+.cesium-widget-credits {
+  display: none;
+}
+
+/* Hide Cesium timeline */
+.cesium-viewer-timelineContainer {
+  display: none;
+}
+
+/* Hide Cesium animation widget */
+.cesium-viewer-animationContainer {
+  display: none;
+}
+
+/* Hide Cesium fullscreen button */
+.cesium-viewer-fullscreenContainer {
+  display: none;
+}
+
+/* Hide Cesium VR button */
+.cesium-viewer-vrContainer {
+  display: none;
+}
+
+/* Enhanced cinematic animations */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.3); }
+  50% { box-shadow: 0 0 40px rgba(59, 130, 246, 0.6); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.animate-fade-in {
+  animation: fade-in 1s ease-out;
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* Enhanced flip card utilities for 3D effects */
+.transform-style-preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.8s;
+  transform-style: preserve-3d;
+}
+
+.flip-card-face {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+.flip-card-front {
+  /* Front face default styling - can be extended by components */
+  z-index: 2;
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+}
+
+/* Custom slider styling for cinematic timelines */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  cursor: pointer;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+}
+
+/* Smooth scrolling for cinematic feel */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(45deg, #2563eb, #7c3aed);
+}
+
+/* Enhanced gradient text */
+.gradient-brand {
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #ef4444);
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Responsive typography scaling */
+@media (max-width: 768px) {
+  .text-8xl { font-size: 4rem; }
+  .text-7xl { font-size: 3.5rem; }
+  .text-6xl { font-size: 3rem; }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  .animate-pulse,
+  .animate-ping,
+  .animate-spin {
+    animation: none !important;
+  }
+}

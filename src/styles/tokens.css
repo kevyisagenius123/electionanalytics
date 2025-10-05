@@ -1,0 +1,75 @@
+/* Design Tokens: Cinematic Election Engine */
+:root {
+	/* Palette */
+	--color-bg-deep:#0D1117;
+	--color-bg-alt:#121B24;
+	--color-panel:#18222C;
+	--color-border:#23313F;
+	--color-border-soft:#1A2732;
+	--color-text:#F1F5F9;
+	--color-text-dim:#94A3B8;
+	--color-text-faint:#64748B;
+	--color-accent:#6366F1;
+	--color-accent-alt:#4F46E5;
+	--color-accent-glow:rgba(99,102,241,0.45);
+	--color-gop:#C62828;
+	--color-gop-alt:#8E1B1B;
+	--color-dem:#1565C0;
+	--color-dem-alt:#0B4C94;
+	--color-neutral:#6C7280;
+	--color-warning:#FFB300;
+	--color-success:#10B981;
+	--color-danger:#EF4444;
+
+	/* Elevation (shadows) */
+	--elev-1:0 1px 2px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.03) inset;
+	--elev-2:0 4px 12px -2px rgba(0,0,0,0.45),0 0 0 1px rgba(255,255,255,0.04) inset;
+	--elev-glow:0 0 0 1px rgba(255,255,255,0.07),0 0 0 3px rgba(99,102,241,0.25),0 8px 28px -6px rgba(0,0,0,0.55);
+
+	/* Spacing scale (4pt base) */
+	--space-0:0;
+	--space-1:4px;
+	--space-2:8px;
+	--space-3:12px;
+	--space-4:16px;
+	--space-5:20px;
+	--space-6:24px;
+	--space-7:28px;
+	--space-8:32px;
+	--space-10:40px;
+	--space-12:48px;
+
+	/* Radii */
+	--radius-xs:4px;
+	--radius-sm:6px;
+	--radius-md:10px;
+	--radius-lg:14px;
+	--radius-pill:999px;
+
+	/* Typography */
+	--font-sans:'Inter',system-ui,sans-serif;
+	--font-mono:'JetBrains Mono',monospace;
+	--text-xs:11px;
+	--text-sm:13px;
+	--text-md:15px;
+	--text-lg:18px;
+	--text-xl:24px;
+	--text-2xl:32px;
+
+	/* Animation */
+	--ease-soft:cubic-bezier(.17,.9,.25,1);
+	--dur-fast:120ms;
+	--dur-med:260ms;
+	--dur-slow:480ms;
+}
+
+/* Utility classes (optional lightweight replacements) */
+.panel-base { background:linear-gradient(145deg,var(--color-panel),#152029); border:1px solid var(--color-border); border-radius:var(--radius-lg); box-shadow:var(--elev-1); }
+.panel-glow { box-shadow:var(--elev-glow); }
+.chip { background:rgba(255,255,255,0.06); border:1px solid var(--color-border-soft); padding:2px 10px; font-size:var(--text-xs); border-radius:var(--radius-pill); letter-spacing:.05em; text-transform:uppercase; }
+.metric { font-variant-numeric:tabular-nums; }
+.gradient-brand { background:linear-gradient(90deg,var(--color-accent),#4F8DF1); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+/* Theming helpers */
+.bg-grid-overlay { background-image:radial-gradient(circle at 1px 1px,rgba(255,255,255,0.06) 1px,transparent 0); background-size:28px 28px; mask-image:radial-gradient(circle at center,rgba(0,0,0,.9),rgba(0,0,0,0)); }
+
