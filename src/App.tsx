@@ -4,7 +4,7 @@ import './App.css'
 
 function App() {
   return (
-    <Router>
+    <Router basename="/electionanalytics">
       <Routes>
         <Route path="/" element={<RustBeltSwing3DPage />} />
         <Route path="/rustbelt-swing-3d" element={<RustBeltSwing3DPage />} />
