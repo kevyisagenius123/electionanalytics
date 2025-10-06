@@ -69,6 +69,8 @@ const RustBeltSwing3DPage: React.FC = () => {
   const [status, setStatus] = useState('Loading…')
   // Scope selector: Rust Belt (default) or All States
   const [scope, setScope] = useState<'RB'|'ALL'>('RB')
+  // Sidebar collapse state
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   // Iowa-like scenario controls
   const [demSwing, setDemSwing] = useState(0)
   const [gopSwing, setGopSwing] = useState(0)
@@ -729,12 +731,39 @@ const RustBeltSwing3DPage: React.FC = () => {
 
   return (
     <div className="w-screen h-screen fixed inset-0 bg-slate-950 text-slate-100">
-      <div className="absolute top-3 left-3 z-30 flex gap-3 items-center">
-        <a href="/" className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-900/80 border border-slate-700 hover:border-slate-600">← Home</a>
-        <span className="text-[11px] text-slate-300">{status}</span>
+      {/* Hamburger menu button - visible on mobile, or when sidebar is closed */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="fixed top-3 left-3 z-50 p-2 rounded-md bg-slate-900/90 border border-slate-700 hover:border-slate-600 lg:hidden"
+        aria-label="Toggle menu"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          {sidebarOpen ? (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          ) : (
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+          )}
+        </svg>
+      </button>
+
+      {/* Desktop close/open button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="hidden lg:block fixed top-3 left-3 z-50 px-3 py-1.5 rounded-md text-xs font-medium bg-slate-900/80 border border-slate-700 hover:border-slate-600"
+      >
+        {sidebarOpen ? '◀ Hide' : '▶ Show'}
+      </button>
+
+      {/* Status indicator - repositioned when sidebar is closed */}
+      <div className={`fixed top-3 z-40 flex gap-3 items-center transition-all duration-300 ${sidebarOpen ? 'left-20 lg:left-24' : 'left-14 lg:left-20'}`}>
+        <a href="/" className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-900/80 border border-slate-700 hover:border-slate-600 hidden lg:inline-block">← Home</a>
+        <span className="text-[11px] text-slate-300 bg-slate-900/80 px-2 py-1 rounded border border-slate-700">{status}</span>
       </div>
-      {/* Iowa-like scenario controls */}
-      <div className="absolute top-14 left-3 z-30 flex flex-col gap-2 p-3 rounded-md bg-slate-900/80 border border-slate-700">
+
+      {/* Collapsible sidebar */}
+      <div className={`fixed top-0 left-0 h-full z-40 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} w-full sm:w-96 lg:w-[28rem] overflow-hidden`}>
+        <div className="h-full overflow-y-auto bg-slate-900/95 border-r border-slate-700 backdrop-blur-sm">
+          <div className="p-3 pt-16 lg:pt-14 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <div className="text-[11px] text-slate-200 font-semibold">Scenario</div>
           {selectedStates.length>0 && (
@@ -877,12 +906,21 @@ const RustBeltSwing3DPage: React.FC = () => {
           <button onClick={()=>{ setDemSwing(0); setGopSwing(0); setTurnoutShift(0); setLinkSwings(false); setNetSwing(0); setHybridWeight(60); setHeightScale(1); setFillAlpha(235); clearSolver(true); }} className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-800/70 border border-slate-700">Reset All</button>
         </div>
 
-  {/* Statewide readout */}
-  <StatewideReadout computeCurrentStatewideMarginNoLocal={computeCurrentStatewideMarginNoLocal} solverActive={solverActive} countFlips={countFlips} />
+            {/* Statewide readout */}
+            <StatewideReadout computeCurrentStatewideMarginNoLocal={computeCurrentStatewideMarginNoLocal} solverActive={solverActive} countFlips={countFlips} />
+            
+            {/* Legend moved into sidebar */}
+            <div className="mt-3 p-3 rounded-md border border-slate-700 bg-slate-900/70">
+              <div ref={legendRef} className="text-[11px] text-slate-200" dangerouslySetInnerHTML={{ __html: legendHtml(anySwing) }} />
+            </div>
+          </div>
+        </div>
       </div>
-      {/* Legend */}
-  <div ref={legendRef} className="absolute bottom-4 left-4 z-30 bg-slate-900/85 border border-slate-700 rounded-lg p-3 text-[11px] text-slate-200" dangerouslySetInnerHTML={{ __html: legendHtml(anySwing) }} />
+
+      {/* Tooltip */}
       <div id="rb-tip" className="absolute z-30 pointer-events-none rounded-md border border-slate-700 bg-slate-900/90 px-2 py-1.5 text-[11px] shadow" style={{ display:'none', left:0, top:0 }} />
+      
+      {/* DeckGL Map */}
       <DeckGL
         layers={layers}
         viewState={viewState as any}

@@ -98,6 +98,52 @@ body { background: radial-gradient(circle at 30% 20%, #162132 0%, #0b111b 70%) f
 
 @media (max-width: 640px) { .app-grid { grid-template-columns: 1fr !important; } }
 
+/* ---- Mobile Touch Optimizations ---- */
+@media (max-width: 1024px) {
+  /* Improve touch target sizes */
+  input[type="range"] {
+    height: 32px;
+    cursor: pointer;
+  }
+  
+  input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  
+  input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+  }
+  
+  /* Make buttons more touch-friendly */
+  button {
+    min-height: 36px;
+    touch-action: manipulation;
+  }
+  
+  /* Prevent text selection during map interaction */
+  canvas {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Smooth scrolling for sidebar */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Prevent zoom on double-tap for iOS */
+* {
+  touch-action: pan-x pan-y;
+}
+
+input, textarea, button, select {
+  touch-action: manipulation;
+}
+
 .cesium-widget-credits {
   display: none;
 }
