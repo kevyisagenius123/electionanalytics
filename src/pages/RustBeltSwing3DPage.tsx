@@ -109,7 +109,7 @@ const RustBeltSwing3DPage: React.FC = () => {
   async function loadFallbackYear(year: number): Promise<Map<string, CountyBaseline>> {
     const out = new Map<string, CountyBaseline>()
     try {
-      const url = `/data/results/counties_${year}.json`
+      const url = `data/results/counties_${year}.json`
       const arr:any[] = await fetch(url).then(r=> r.ok? r.json(): [])
       if (Array.isArray(arr)) {
         for (const row of arr) {
@@ -137,13 +137,13 @@ const RustBeltSwing3DPage: React.FC = () => {
     let alive = true
     ;(async () => {
       try {
-        const s = await fetch('/gz_2010_us_040_00_500k.json').then(r=>r.json())
+        const s = await fetch('gz_2010_us_040_00_500k.json').then(r=>r.json())
         if (!alive) return
         allStatesRef.current = s
         // Initialize current scoped states
         const sf = (s.features||[]).filter((f:any)=> RUST_BELT_STATES.includes(to2(f?.properties?.STATE) || ''))
         statesRef.current = { type:'FeatureCollection', features: sf }
-        const c = await fetch('/gz_2010_us_050_00_500k.json').then(r=>r.json())
+        const c = await fetch('gz_2010_us_050_00_500k.json').then(r=>r.json())
         if (!alive) return
         allCountiesRef.current = c
         const cf = (c.features||[]).filter((f:any)=> RUST_BELT_STATES.includes(to2(f?.properties?.STATE || f?.properties?.STATEFP || f?.properties?.STATEFP10) || ''))
