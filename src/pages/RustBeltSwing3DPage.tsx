@@ -7,11 +7,6 @@ import { iowaMarginRgba, extrusionFromMarginIOWA, turnoutHeightFromVotesIOWA, IO
 type ViewState = { longitude: number; latitude: number; zoom: number; pitch?: number; bearing?: number }
 // Use dedicated Rust Belt backend (non-SSE). Default to relative path so Vite proxy handles dev.
 const RB_API = (import.meta as any)?.env?.VITE_RB_API ?? '/api/rustbelt'
-// Helper to get correct base URL for assets
-const getAssetUrl = (path: string) => {
-  const base = (import.meta as any)?.env?.BASE_URL || '/'
-  return base + (path.startsWith('/') ? path.slice(1) : path)
-}
 // All scopes served by the Rust Belt backend; use states=ALL to request national baselines
 
 // Rust Belt states (FIPS): IL(17), IN(18), MI(26), OH(39), PA(42), WI(55), MN(27)
@@ -114,7 +109,7 @@ const RustBeltSwing3DPage: React.FC = () => {
   async function loadFallbackYear(year: number): Promise<Map<string, CountyBaseline>> {
     const out = new Map<string, CountyBaseline>()
     try {
-      const url = getAssetUrl(`data/results/counties_${year}.json`)
+      const url = `/data/results/counties_${year}.json`
       const arr:any[] = await fetch(url).then(r=> r.ok? r.json(): [])
       if (Array.isArray(arr)) {
         for (const row of arr) {
@@ -142,13 +137,13 @@ const RustBeltSwing3DPage: React.FC = () => {
     let alive = true
     ;(async () => {
       try {
-        const s = await fetch(getAssetUrl('gz_2010_us_040_00_500k.json')).then(r=>r.json())
+        const s = await fetch('/gz_2010_us_040_00_500k.json').then(r=>r.json())
         if (!alive) return
         allStatesRef.current = s
         // Initialize current scoped states
         const sf = (s.features||[]).filter((f:any)=> RUST_BELT_STATES.includes(to2(f?.properties?.STATE) || ''))
         statesRef.current = { type:'FeatureCollection', features: sf }
-        const c = await fetch(getAssetUrl('gz_2010_us_050_00_500k.json')).then(r=>r.json())
+        const c = await fetch('/gz_2010_us_050_00_500k.json').then(r=>r.json())
         if (!alive) return
         allCountiesRef.current = c
         const cf = (c.features||[]).filter((f:any)=> RUST_BELT_STATES.includes(to2(f?.properties?.STATE || f?.properties?.STATEFP || f?.properties?.STATEFP10) || ''))
