@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
 import DeckGL from '@deck.gl/react'
 import { GeoJsonLayer } from '@deck.gl/layers'
 import type { FeatureCollection, Feature, Geometry } from 'geojson'
 import { iowaMarginRgba, extrusionFromMarginIOWA, turnoutHeightFromVotesIOWA, IOWA_GOP, IOWA_DEM, iowaMarginBinIndex } from '../lib/election/swing'
+import ElectoralCollegeCalculator from '../components/ElectoralCollegeCalculator'
 
 type ViewState = { longitude: number; latitude: number; zoom: number; pitch?: number; bearing?: number }
 // Use dedicated Rust Belt backend (non-SSE). Default to relative path so Vite proxy handles dev.
@@ -37,6 +39,13 @@ type CountyUpdateDto = {
   marginPct: number // -100..100 (R-D)
   leader: 'GOP' | 'DEM' | 'TIED' | 'NONE'
   ts: number
+}
+
+type CustomEdit = {
+  fips: string
+  votesGop: number
+  votesDem: number
+  totalVotes: number
 }
 
 function to2(v: any){ return v==null? null : String(v).padStart(2,'0') }
@@ -91,10 +100,22 @@ const RustBeltSwing3DPage: React.FC = () => {
   const [stateHeightScale, setStateHeightScale] = useState(0.4)
   const legendRef = useRef<HTMLDivElement|null>(null)
   // Multi-year baselines and active base year
-  // Include 2008 and 2012 per request. We will fall back to local JSON for these years
+  // Include 2000, 2004, 2008 and 2012 per request. We will fall back to local JSON for these years
   // if the backend does not provide them.
-  const availableYears = [2008, 2012, 2016, 2020, 2024]
-  const [baseYear, setBaseYear] = useState<number>(2024)
+  const availableYears = [2000, 2004, 2008, 2012, 2016, 2020, 2024, 'Custom'] as const
+  const [baseYear, setBaseYear] = useState<number | 'Custom'>(2024)
+  // Custom baseline editing
+  const [customEdits, setCustomEdits] = useState<Map<string, CustomEdit>>(new Map())
+  const [customScenarioActive, setCustomScenarioActive] = useState(false)
+  const [countyEditPopup, setCountyEditPopup] = useState<{
+    fips: string
+    countyName: string
+    stateName: string
+    currentGop: number
+    currentDem: number
+  } | null>(null)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [blankCanvasMode, setBlankCanvasMode] = useState(false)
   // Active baseline cache (depends on scope)
   const baselineByYearRef = useRef<Map<number, Map<string, CountyBaseline>>>(new Map())
   // Per-scope caches to avoid refetch on toggle
@@ -190,12 +211,14 @@ const RustBeltSwing3DPage: React.FC = () => {
     let stop = false
     ;(async () => {
       try {
-        const url = `${RB_API}/timeline?years=${availableYears.join(',')}`
+        // Filter out 'Custom' as backend doesn't handle it
+        const numericYears = availableYears.filter(y => typeof y === 'number') as number[]
+        const url = `${RB_API}/timeline?years=${numericYears.join(',')}`
         const res = await fetch(url)
         if (res.ok) {
           const data = await res.json()
           const tmp = new Map<number, Map<string, CountyBaseline>>()
-          for (const y of availableYears) {
+          for (const y of numericYears) {
             const arr:any[] = Array.isArray(data?.[String(y)]) ? data[String(y)] : []
             const m = new Map<string, CountyBaseline>()
             for (const b of arr) {
@@ -221,9 +244,11 @@ const RustBeltSwing3DPage: React.FC = () => {
           rbBaselineByYearRef.current = tmp
           // Default active cache is RB
           baselineByYearRef.current = rbBaselineByYearRef.current
-          // Set current base map to selected year (default 2024)
-          const cur = rbBaselineByYearRef.current.get(baseYear)
-          if (cur) baseMap.current = cur
+          // Set current base map to selected year (default 2024), skip if Custom
+          if (typeof baseYear === 'number') {
+            const cur = rbBaselineByYearRef.current.get(baseYear)
+            if (cur) baseMap.current = cur
+          }
         }
       } catch {}
       finally { if (!stop) setTickKey(k=>k+1) }
@@ -237,20 +262,23 @@ const RustBeltSwing3DPage: React.FC = () => {
     ;(async ()=>{
       if (scope==='RB'){
         baselineByYearRef.current = rbBaselineByYearRef.current
-        const cur = baselineByYearRef.current.get(baseYear)
-        if (cur) baseMap.current = cur
+        if (typeof baseYear === 'number') {
+          const cur = baselineByYearRef.current.get(baseYear)
+          if (cur) baseMap.current = cur
+        }
         setTickKey(k=>k+1)
       } else {
         // ALL
         if (natBaselineByYearRef.current.size===0){
           try{
             setStatus('Loading All States baselines…')
-            const url = `${RB_API}/timeline?years=${availableYears.join(',')}&states=ALL`
+            const numericYears = availableYears.filter(y => typeof y === 'number') as number[]
+            const url = `${RB_API}/timeline?years=${numericYears.join(',')}&states=ALL`
             const res = await fetch(url)
             if (res.ok){
               const data = await res.json()
               const tmp = new Map<number, Map<string, CountyBaseline>>()
-              for (const y of availableYears) {
+              for (const y of numericYears) {
                 const arr:any[] = Array.isArray(data?.[String(y)]) ? data[String(y)] : []
                 const m = new Map<string, CountyBaseline>()
                 for (const b of arr) {
@@ -283,16 +311,19 @@ const RustBeltSwing3DPage: React.FC = () => {
         }
         // Activate whichever we have (may be empty if load failed)
         baselineByYearRef.current = natBaselineByYearRef.current.size? natBaselineByYearRef.current : rbBaselineByYearRef.current
-        const cur = baselineByYearRef.current.get(baseYear)
-        if (cur) baseMap.current = cur
+        if (typeof baseYear === 'number') {
+          const cur = baselineByYearRef.current.get(baseYear)
+          if (cur) baseMap.current = cur
+        }
         setTickKey(k=>k+1)
       }
     })()
     return ()=>{ cancelled = true }
   }, [scope])
 
-  // When baseYear changes, switch baseline map
+  // When baseYear changes, switch baseline map (skip for Custom - handled separately)
   useEffect(()=>{
+    if (baseYear === 'Custom') return // Custom mode is handled by the next effect
     const m = baselineByYearRef.current.get(baseYear)
     if (m) {
       baseMap.current = m
@@ -300,6 +331,51 @@ const RustBeltSwing3DPage: React.FC = () => {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [baseYear])
+  
+  // Handle Custom baseline year - create empty baseline from GeoJSON structure
+  useEffect(() => {
+    if (baseYear === 'Custom') {
+      console.log('Custom mode activated, creating empty baselines...')
+      const emptyBaselines = new Map<string, CountyBaseline>()
+      
+      // Use allCountiesRef which has all US counties
+      const features = allCountiesRef.current?.features || []
+      console.log(`Found ${features.length} counties to create empty baselines for`)
+      
+      features.forEach((f: any) => {
+        const fips = f?.properties?.GEO_ID?.slice(-5) || f?.properties?.FIPS || f?.properties?.COUNTYFP || ''
+        const stateFips = fips.slice(0, 2)
+        const countyName = f?.properties?.NAME || 'County'
+        
+        if (fips && fips.length === 5) {
+          emptyBaselines.set(fips, {
+            fips,
+            stateFips,
+            countyName,
+            totalVotes2024: 0,
+            votesGop2024: 0,
+            votesDem2024: 0,
+          })
+        }
+      })
+      
+      console.log(`Created ${emptyBaselines.size} empty baselines`)
+      baseMap.current = emptyBaselines
+      setCustomScenarioActive(true)
+      setTickKey(k => k + 1)
+    } else {
+      // Switch back to regular baseline (only for numeric years)
+      if (typeof baseYear === 'number') {
+        setCustomScenarioActive(false)
+        const cur = baselineByYearRef.current.get(baseYear)
+        if (cur) {
+          baseMap.current = cur
+          setTickKey(k => k + 1)
+        }
+      }
+    }
+  }, [baseYear, countiesRef.current])
+  
   // Clear solver when year changes (to avoid mixing weights across baselines)
   useEffect(()=>{ clearSolver(false) }, [baseYear])
   // Recompute turnout normalization stats when baseline changes
@@ -351,9 +427,65 @@ const RustBeltSwing3DPage: React.FC = () => {
   // Compute projected margin and swing from baseline + sliders using Iowa method:
   // Swings are additive to party shares then renormalized to keep (D+R) <= 1; third-party absorbs residual.
   function projectedSwing(base?: CountyBaseline, fips?:string): { swing:number; newMargin:number; baseMargin:number; baseShares?:{g:number; d:number}; newShares?:{g:number; d:number}; local?:{dem:number; gop:number} } {
+    // In Custom baseline mode, use custom edits as the baseline and apply swings
+    if (baseYear === 'Custom') {
+      if (!fips) return { swing:0, newMargin:0, baseMargin:0 }
+      const edit = customEdits.get(fips)
+      if (!edit || edit.totalVotes === 0) return { swing:0, newMargin:0, baseMargin:0 }
+      
+      const gShare0 = edit.votesGop / Math.max(1, edit.totalVotes)
+      const dShare0 = edit.votesDem / Math.max(1, edit.totalVotes)
+      const baseMargin = (gShare0 - dShare0) * 100
+      
+      // Apply Iowa-style swings to custom baseline
+      const localGop = solverActive ? (solverLocalSwingsRef.current.get(fips)?.gop || 0) : 0
+      const localDem = solverActive ? (solverLocalSwingsRef.current.get(fips)?.dem || 0) : 0
+      
+      let gShare = gShare0 + (gopSwing/100) + (localGop/100)
+      let dShare = dShare0 + (demSwing/100) + (localDem/100)
+      
+      // Renormalize if exceeds 100%
+      const sum = gShare + dShare
+      if (sum > 1) {
+        gShare = gShare / sum
+        dShare = dShare / sum
+      }
+      
+      // Clamp to [0, 1]
+      gShare = Math.max(0, Math.min(1, gShare))
+      dShare = Math.max(0, Math.min(1, dShare))
+      
+      const newMargin = (gShare - dShare) * 100
+      const swing = newMargin - baseMargin
+      
+      return {
+        swing,
+        newMargin,
+        baseMargin,
+        baseShares: { g: gShare0, d: dShare0 },
+        newShares: { g: gShare, d: dShare },
+        local: { dem: localDem, gop: localGop }
+      }
+    }
+    
     if (!base || base.totalVotes2024<=0) return { swing:0, newMargin:0, baseMargin:0 }
-    const gShare0 = base.votesGop2024 / Math.max(1, base.totalVotes2024)
-    const dShare0 = base.votesDem2024 / Math.max(1, base.totalVotes2024)
+    
+    // Apply custom edits if custom scenario is active
+    let votesGop = base.votesGop2024
+    let votesDem = base.votesDem2024
+    let totalVotes = base.totalVotes2024
+    
+    if (customScenarioActive && fips) {
+      const edit = customEdits.get(fips)
+      if (edit) {
+        votesGop = edit.votesGop
+        votesDem = edit.votesDem
+        totalVotes = edit.totalVotes
+      }
+    }
+    
+    const gShare0 = votesGop / Math.max(1, totalVotes)
+    const dShare0 = votesDem / Math.max(1, totalVotes)
     const baseMargin = (gShare0 - dShare0) * 100
     // Additive swings (pp to shares) — include solver local swings if active
     let localDem = 0, localGop = 0
@@ -381,6 +513,22 @@ const RustBeltSwing3DPage: React.FC = () => {
 
   const anySwing = (demSwing!==0 || gopSwing!==0 || solverActive)
 
+  // Compute all state margins for Electoral College calculator
+  const stateMargins = useMemo(() => {
+    const margins = new Map<string, number>()
+    // Get all unique state FIPS codes from baseMap
+    const stateFipsSet = new Set<string>()
+    baseMap.current.forEach(b => stateFipsSet.add(b.stateFips))
+    
+    // Compute margin for each state
+    stateFipsSet.forEach(stateFips => {
+      const margin = computeStateProjectedMargin(stateFips)
+      margins.set(stateFips, margin)
+    })
+    
+    return margins
+  }, [tickKey, demSwing, gopSwing, baseYear, customEdits, customScenarioActive, solverActive])
+
   // Compute aggregated projected margin for a given state (R−D, pp), weighted by county votes
   function computeStateProjectedMargin(stateFips: string): number {
     const entries = Array.from(baseMap.current.values()).filter(b=> b.stateFips === stateFips)
@@ -390,7 +538,16 @@ const RustBeltSwing3DPage: React.FC = () => {
     for (const b of entries) {
       const { newMargin, baseMargin } = projectedSwing(b, b.fips)
       const m = anySwing ? newMargin : baseMargin
-      const t = Math.max(0, Number(b.totalVotes2024||0))
+      
+      // In Custom mode, use the custom edit totalVotes, otherwise use baseline totalVotes
+      let t = 0
+      if (baseYear === 'Custom') {
+        const edit = customEdits.get(b.fips)
+        t = edit ? Math.max(0, edit.totalVotes) : 0
+      } else {
+        t = Math.max(0, Number(b.totalVotes2024||0))
+      }
+      
       T += t
       sum += (m/100) * t
     }
@@ -403,10 +560,21 @@ const RustBeltSwing3DPage: React.FC = () => {
     let T = 0
     let sum = 0
     for (const b of entries) {
-      const g0 = b.votesGop2024/Math.max(1,b.totalVotes2024)
-      const d0 = b.votesDem2024/Math.max(1,b.totalVotes2024)
+      // In Custom mode, use custom edit data for baseline calculation
+      let g0, d0, t
+      if (baseYear === 'Custom') {
+        const edit = customEdits.get(b.fips)
+        if (!edit || edit.totalVotes === 0) continue
+        g0 = edit.votesGop / Math.max(1, edit.totalVotes)
+        d0 = edit.votesDem / Math.max(1, edit.totalVotes)
+        t = edit.totalVotes
+      } else {
+        g0 = b.votesGop2024/Math.max(1,b.totalVotes2024)
+        d0 = b.votesDem2024/Math.max(1,b.totalVotes2024)
+        t = Math.max(0, Number(b.totalVotes2024||0))
+      }
+      
       const m = (g0 - d0) * 100
-      const t = Math.max(0, Number(b.totalVotes2024||0))
       T += t
       sum += (m/100) * t
     }
@@ -449,6 +617,13 @@ const RustBeltSwing3DPage: React.FC = () => {
         const fips = f?.properties?.GEO_ID?.slice(-5) || f?.properties?.FIPS || f?.properties?.COUNTYFP || ''
         const base = baseMap.current.get(fips)
         if (!base) return [100,116,139,180]
+        
+        // In Custom mode, show gray for counties with no data
+        if (baseYear === 'Custom') {
+          const edit = customEdits.get(fips)
+          if (!edit || edit.totalVotes === 0) return [100,116,139,180]
+        }
+        
         const { newMargin, baseMargin } = projectedSwing(base, fips)
         // Always color by margin (lead %), matching Iowa. When no swing, use baseline margin.
         const m = anySwing ? newMargin : baseMargin
@@ -520,22 +695,60 @@ const RustBeltSwing3DPage: React.FC = () => {
             const newD = newShares? (newShares.d*100).toFixed(1) : '—'
             const locDem = (local?.dem ?? 0).toFixed(2)
             const locGop = (local?.gop ?? 0).toFixed(2)
+            // Fix -0.00 display
+            const baseMarginDisplay = Math.abs(baseMargin) < 0.005 ? Math.abs(baseMargin).toFixed(2) : baseMargin.toFixed(2)
+            const newMarginDisplay = Math.abs(newMargin) < 0.005 ? Math.abs(newMargin).toFixed(2) : newMargin.toFixed(2)
+            const stateProjDisplay = stateProj != null && Math.abs(stateProj) < 0.005 ? Math.abs(stateProj).toFixed(2) : stateProj?.toFixed(2)
             tip.innerHTML = `<div style='font-weight:600'>${name}</div>
-              <div style='font-size:11px;color:#cbd5e1'>Baseline: GOP ${baseG}%, DEM ${baseD}%, margin ${baseMargin.toFixed(2)} pp</div>
+              <div style='font-size:11px;color:#cbd5e1'>Baseline: GOP ${baseG}%, DEM ${baseD}%, margin ${baseMarginDisplay} pp</div>
               <div style='font-size:11px;color:#cbd5e1'>Sliders: Dem ${demSwing.toFixed(2)} pp, GOP ${gopSwing.toFixed(2)} pp${solverActive? `, Local Δ: Dem ${locDem} pp, GOP ${locGop} pp` : ''}</div>
-              <div style='font-size:11px;color:#cbd5e1'>Projected: GOP ${newG}%, DEM ${newD}%, margin ${anySwing? newMargin.toFixed(2)+' pp':'—'}</div>
+              <div style='font-size:11px;color:#cbd5e1'>Projected: GOP ${newG}%, DEM ${newD}%, margin ${anySwing? newMarginDisplay+' pp':'—'}</div>
               <div style='font-size:11px;color:#cbd5e1'>Turnout factor: ${(tf).toFixed(2)}× (shift ${turnoutShift}%)</div>
-              ${stateProj!=null? `<div style='font-size:11px;color:#cbd5e1'>State projected margin: ${stateProj.toFixed(2)} pp</div>` : ''}`
+              ${stateProj!=null? `<div style='font-size:11px;color:#cbd5e1'>State projected margin: ${stateProjDisplay} pp</div>` : ''}`
           } else {
+            const baseMarginDisplay = Math.abs(baseMargin) < 0.005 ? Math.abs(baseMargin).toFixed(2) : baseMargin.toFixed(2)
+            const newMarginDisplay = Math.abs(newMargin) < 0.005 ? Math.abs(newMargin).toFixed(2) : newMargin.toFixed(2)
             tip.innerHTML = `<div style='font-weight:600'>${name}</div>
-              <div style='font-size:11px;color:#cbd5e1'>Baseline: ${baseMargin.toFixed(2)} pp</div>
-              <div style='font-size:11px;color:#cbd5e1'>Projected: ${anySwing? newMargin.toFixed(2)+' pp':'—'}</div>`
+              <div style='font-size:11px;color:#cbd5e1'>Baseline: ${baseMarginDisplay} pp</div>
+              <div style='font-size:11px;color:#cbd5e1'>Projected: ${anySwing? newMarginDisplay+' pp':'—'}</div>`
           }
         }
       },
-      onClick: () => {}
+      onClick: ({object}:any) => {
+        // Allow editing county data in any baseline year
+        if (!object) return
+        
+        const fips = object?.properties?.GEO_ID?.slice(-5) || object?.properties?.FIPS || object?.properties?.COUNTYFP || ''
+        const baseline = baseMap.current.get(fips)
+        if (!baseline) return
+        
+        const currentEdit = customEdits.get(fips)
+        const countyName = object?.properties?.NAME || baseline.countyName || 'County'
+        const st = object?.properties?.STATE || object?.properties?.STATEFP || object?.properties?.STATEFP10
+        const stFips = to2(st||'') || baseline.stateFips
+        const stateName = stFips ? `State ${stFips}` : ''
+        
+        // In Custom mode, use custom edit values if available, otherwise 0
+        // In other years, use baseline values if no custom edit exists
+        let gopVal, demVal
+        if (baseYear === 'Custom') {
+          gopVal = currentEdit?.votesGop ?? 0
+          demVal = currentEdit?.votesDem ?? 0
+        } else {
+          gopVal = currentEdit?.votesGop ?? baseline.votesGop2024
+          demVal = currentEdit?.votesDem ?? baseline.votesDem2024
+        }
+        
+        setCountyEditPopup({
+          fips,
+          countyName,
+          stateName,
+          currentGop: gopVal,
+          currentDem: demVal,
+        })
+      }
     })
-  }, [countiesRef.current, tickKey, selectionKey])
+  }, [countiesRef.current, tickKey, selectionKey, baseYear, customEdits])
 
   const statesLayer = useMemo(() => {
     if (!statesRef.current) return null
@@ -586,12 +799,15 @@ const RustBeltSwing3DPage: React.FC = () => {
           tip.style.display = 'block'
           tip.style.left = `${x+10}px`
           tip.style.top = `${y+10}px`
+          // Fix -0.00 display (show as +0.00 or 0.00)
+          const baseMDisplay = Math.abs(baseM) < 0.005 ? Math.abs(baseM).toFixed(2) : baseM.toFixed(2)
+          const projMDisplay = Math.abs(projM) < 0.005 ? Math.abs(projM).toFixed(2) : projM.toFixed(2)
           tip.innerHTML = verboseTooltip
             ? `<div style='font-weight:600'>${name}</div>
-               <div style='font-size:11px;color:#cbd5e1'>Baseline margin: ${baseM.toFixed(2)} pp (R−D)</div>
-               <div style='font-size:11px;color:#cbd5e1'>Projected margin: ${projM.toFixed(2)} pp</div>`
+               <div style='font-size:11px;color:#cbd5e1'>Baseline margin: ${baseMDisplay} pp (R−D)</div>
+               <div style='font-size:11px;color:#cbd5e1'>Projected margin: ${projMDisplay} pp</div>`
             : `<div style='font-weight:600'>${name}</div>
-               <div style='font-size:11px;color:#cbd5e1'>Projected: ${projM.toFixed(2)} pp</div>`
+               <div style='font-size:11px;color:#cbd5e1'>Projected: ${projMDisplay} pp</div>`
         }
       },
       onClick: ({object}:any) => {
@@ -756,7 +972,7 @@ const RustBeltSwing3DPage: React.FC = () => {
 
       {/* Status indicator - repositioned when sidebar is closed */}
       <div className={`fixed top-3 z-40 flex gap-3 items-center transition-all duration-300 ${sidebarOpen ? 'left-20 lg:left-24' : 'left-14 lg:left-20'}`}>
-        <a href="/" className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-900/80 border border-slate-700 hover:border-slate-600 hidden lg:inline-block">← Home</a>
+        <Link to="/" className="px-3 py-1.5 rounded-md text-xs font-medium bg-slate-900/80 border border-slate-700 hover:border-slate-600 hidden lg:inline-block">← Home</Link>
         <span className="text-[11px] text-slate-300 bg-slate-900/80 px-2 py-1 rounded border border-slate-700">{status}</span>
       </div>
 
@@ -814,9 +1030,46 @@ const RustBeltSwing3DPage: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <label className="text-[11px] text-slate-300 w-20">Base year</label>
-          <select value={baseYear} onChange={e=> setBaseYear(parseInt(e.target.value))} className="text-[11px] bg-slate-800 border border-slate-700 rounded px-2 py-1">
+          <select 
+            value={baseYear} 
+            onChange={e=> {
+              const val = e.target.value
+              if (val === 'Custom') {
+                setBaseYear('Custom')
+              } else {
+                const numVal = parseInt(val)
+                if (!isNaN(numVal)) setBaseYear(numVal)
+              }
+            }} 
+            className="text-[11px] bg-slate-800 border border-slate-700 rounded px-2 py-1"
+          >
             {availableYears.map(y=> <option key={y} value={y}>{y}</option>)}
           </select>
+        </div>
+        {/* Custom Edits Management */}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setEditorOpen(true)}
+            className="flex-1 px-3 py-1.5 text-[11px] rounded font-medium bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors"
+          >
+            Edit Custom Baseline
+            {customEdits.size > 0 && ` (${customEdits.size} edited)`}
+          </button>
+          {customEdits.size > 0 && (
+            <button
+              onClick={() => {
+                if (confirm(`Clear all ${customEdits.size} custom county edits?`)) {
+                  setCustomEdits(new Map())
+                  setCustomScenarioActive(false)
+                  setTickKey(k => k + 1)
+                }
+              }}
+              className="px-3 py-1.5 text-[11px] rounded font-medium bg-rose-700 hover:bg-rose-600 border border-rose-600 transition-colors"
+              title="Clear all custom edits"
+            >
+              Reset Edits
+            </button>
+          )}
         </div>
         {/* Targeted Outcome Solver */}
         <div className="mt-1 p-2 rounded-md border border-slate-700 bg-slate-900/70">
@@ -917,9 +1170,107 @@ const RustBeltSwing3DPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Electoral College Calculator - Top Right Panel */}
+      <div className="absolute top-4 right-4 z-30 w-96">
+        <ElectoralCollegeCalculator 
+          stateMargins={stateMargins}
+          showDetails={true}
+        />
+      </div>
+
       {/* Tooltip */}
       <div id="rb-tip" className="absolute z-30 pointer-events-none rounded-md border border-slate-700 bg-slate-900/90 px-2 py-1.5 text-[11px] shadow" style={{ display:'none', left:0, top:0 }} />
       
+      {/* County Edit Popup */}
+      {countyEditPopup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setCountyEditPopup(null)}>
+          <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 shadow-2xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-xl font-bold mb-2 text-white">{countyEditPopup.countyName}</h3>
+            <p className="text-sm text-slate-400 mb-1">{countyEditPopup.stateName} • FIPS {countyEditPopup.fips}</p>
+            <p className="text-xs text-amber-400 mb-4">
+              {baseYear === 'Custom' ? 'Custom Baseline' : `${baseYear} Baseline Override`}
+            </p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Republican Votes
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  id="gop-input"
+                  defaultValue={String(countyEditPopup.currentGop || 0)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-lg"
+                  autoFocus
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-2">
+                  Democrat Votes
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  id="dem-input"
+                  defaultValue={String(countyEditPopup.currentDem || 0)}
+                  className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-white text-lg"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-4">
+                <button
+                  onClick={() => {
+                    const gopInput = document.getElementById('gop-input') as HTMLInputElement
+                    const demInput = document.getElementById('dem-input') as HTMLInputElement
+                    const gopVotes = parseInt(gopInput.value) || 0
+                    const demVotes = parseInt(demInput.value) || 0
+                    
+                    const newEdits = new Map(customEdits)
+                    newEdits.set(countyEditPopup.fips, {
+                      fips: countyEditPopup.fips,
+                      votesGop: gopVotes,
+                      votesDem: demVotes,
+                      totalVotes: gopVotes + demVotes,
+                    })
+                    
+                    setCustomEdits(newEdits)
+                    setCustomScenarioActive(true)
+                    setTickKey(k => k + 1)
+                    setCountyEditPopup(null)
+                  }}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 px-4 py-2 rounded font-medium text-white"
+                >
+                  Save
+                </button>
+                {customEdits.has(countyEditPopup.fips) && (
+                  <button
+                    onClick={() => {
+                      const newEdits = new Map(customEdits)
+                      newEdits.delete(countyEditPopup.fips)
+                      setCustomEdits(newEdits)
+                      setTickKey(k => k + 1)
+                      setCountyEditPopup(null)
+                    }}
+                    className="px-4 py-2 rounded font-medium bg-rose-600 hover:bg-rose-700 text-white"
+                    title="Reset to baseline value"
+                  >
+                    Reset
+                  </button>
+                )}
+                <button
+                  onClick={() => setCountyEditPopup(null)}
+                  className="flex-1 bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded font-medium text-white"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* DeckGL Map */}
       <DeckGL
         layers={layers}

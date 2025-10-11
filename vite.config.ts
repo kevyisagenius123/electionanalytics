@@ -347,17 +347,16 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
-      external: ['cesium'],
       output: {
         manualChunks: {
-          // Don't bundle cesium since we're using CDN
+          // Chunk strategy for better caching
         }
       }
     },
   },
   optimizeDeps: {
   include: ['mersenne-twister','urijs','bitmap-sdf','lerc','nosleep.js'],
-    exclude: ['cesium','grapheme-splitter'],
+    exclude: ['grapheme-splitter'],
     esbuildOptions: {
       // Ensure CJS fallback if needed
       mainFields: ['module','main']
