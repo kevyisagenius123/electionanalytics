@@ -185,8 +185,8 @@ const ElectionNight2024Page: React.FC = () => {
     (async () => {
       try {
         const [countiesData, stateData] = await Promise.all([
-          fetch('/gz_2010_us_050_00_500k.json').then(r=>r.json()),
-          fetch('/gz_2010_us_040_00_500k.json').then(r=>r.json())
+          fetch(`${import.meta.env.BASE_URL}gz_2010_us_050_00_500k.json`).then(r=>r.json()),
+          fetch(`${import.meta.env.BASE_URL}gz_2010_us_040_00_500k.json`).then(r=>r.json())
         ]);
         if (!active) return;
         
